@@ -21,7 +21,6 @@ function initMap(position) {
     localStorage.setItem("savedPins", JSON.stringify(savedLocations));
   });
 
-  // Restore previous pins
   savedLocations.forEach(pin => {
     L.marker([pin.lat, pin.lng]).addTo(map).bindPopup("Saved Location");
   });
@@ -33,11 +32,13 @@ function startTracking() {
   navigator.geolocation.watchPosition(pos => {
     const { latitude, longitude } = pos.coords;
     savedLocations.forEach(pin => {
-      const distance = getDistanceFromLatLonInMeters(latitude, longitude, pin.lat, pin.lng);
-      if (distance < 100) { // 100 meters
+      const distance = getDistanceInMeters(latitude, longitude, pin.lat, pin.lng);
+      if (distance < 100) {
         notifyUser(`You're within 100m of a saved location!`);
       }
     });
+  }, err => {
+    console.warn("Tracking error:", err);
   });
 }
 
@@ -47,7 +48,7 @@ function notifyUser(msg) {
   }
 }
 
-function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const toRad = angle => angle * (Math.PI / 180);
   const dLat = toRad(lat2 - lat1);
@@ -58,7 +59,7 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-function requestPermission() {
+function requestNotificationPermission() {
   if ("Notification" in window) {
     Notification.requestPermission().then(permission => {
       if (permission !== "granted") {
@@ -68,9 +69,16 @@ function requestPermission() {
   }
 }
 
+function fallbackMap() {
+  map = L.map('map').setView([51.505, -0.09], 13); // London fallback
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  alert("Unable to access location. Showing fallback map.");
+}
+
 if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(initMap);
-  requestPermission();
+  navigator.geolocation.getCurrentPosition(initMap, fallbackMap);
+  requestNotificationPermission();
 } else {
-  alert("Geolocation not supported");
+  fallbackMap();
+  alert("Geolocation not supported in this browser.");
 }
