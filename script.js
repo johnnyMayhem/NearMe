@@ -49,7 +49,10 @@ function addPin(latlng) {
   marker.on('popupopen', function () {
     const popupEl = marker.getPopup().getElement();
 
-    // Delay to ensure DOM is ready
+    // Prevent tap/click propagation from popup buttons
+    L.DomEvent.disableClickPropagation(popupEl);
+    L.DomEvent.disableScrollPropagation(popupEl);
+
     setTimeout(() => {
       const closeBtn = popupEl.querySelector('.close-popup');
       const removeBtn = popupEl.querySelector('.remove-pin');
@@ -57,6 +60,7 @@ function addPin(latlng) {
       if (closeBtn) {
         closeBtn.addEventListener('click', e => {
           e.stopPropagation();
+          e.preventDefault();
           marker.closePopup();
         });
       }
@@ -64,6 +68,7 @@ function addPin(latlng) {
       if (removeBtn) {
         removeBtn.addEventListener('click', e => {
           e.stopPropagation();
+          e.preventDefault();
           map.removeLayer(marker);
           pins.splice(pins.indexOf(marker), 1);
           refreshAllPopups();
@@ -100,8 +105,10 @@ function initMap(position) {
   }).addTo(map);
 
   map.on('click', e => {
-    // Prevent click if a button inside a popup was just tapped
-    if (e.originalEvent.target.tagName === 'BUTTON') return;
+    const tag = e.originalEvent.target.tagName.toLowerCase();
+    if (['button', 'div', 'span'].includes(tag) || e.originalEvent.target.closest('.leaflet-popup-content')) {
+      return; // Don't drop a pin when interacting with popup
+    }
     addPin(e.latlng);
   });
 
