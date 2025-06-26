@@ -2,26 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Near Me Map App</title>
-
-  <!-- Leaflet CSS without integrity or crossorigin -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Near Me Map</title>
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
   />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Near Me Map App</h1>
-  <div id="notification-banner" style="display:none; background:#ffcc00; padding:10px; text-align:center;">
-    Safari iOS limits notifications in browsers. Please add this app to your home screen for full notifications.
-  </div>
-
+  <div id="notification-banner"></div>
   <div id="map"></div>
 
-  <!-- Leaflet JS without integrity or crossorigin -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
   <script src="script.js"></script>
 </body>
 </html>
