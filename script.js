@@ -2,22 +2,32 @@ let map;
 let savedLocations = [];
 
 function initMap() {
-  map = L.map('map').setView([51.505, -0.09], 13);
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser");
+    return;
+  }
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  map.on('click', (e) => {
-    const name = prompt('Enter a name for this location:');
-    if (name) {
-      const location = {
-        name,
-        lat: e.latlng.lat,
-        lng: e.latlng.lng
-      };
-      savedLocations.push(location);
-      updateLocationsList();
-      checkProximity(location);
-    }
+  navigator.geolocation.getCurrentPosition((position) => {
+    const { latitude, longitude } = position.coords;
+
+    map = L.map('map').setView([latitude, longitude], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    map.on('click', (e) => {
+      const name = prompt('Enter a name for this location:');
+      if (name) {
+                 lng: e.latlng.lng
+        };
+        savedLocations.push(location);
+        updateLocationsList();
+        checkProximity(location);
+      }
+    });
+  }, () => {
+    alert("Unable to retrieve your location");
   });
 }
 
@@ -25,7 +35,8 @@ function updateLocationsList() {
   const list = document.getElementById('locationsList');
   list.innerHTML = '';
   savedLocations.forEach(loc => {
-       li.textContent = `${loc.name} (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`;
+    const li = document.createElement('li');
+    li.textContent = `${loc.name} (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`;
     list.appendChild(li);
   });
 }
@@ -57,8 +68,10 @@ function getDistance(lat1, lon1, lat2, lon2) {
 function notifyUser(location) {
   if (Notification.permission === 'granted') {
     new Notification(`You're near ${location.name}`);
-  (permission === 'granted') {
-        new Notification(`You're near ${location.name}`);
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        Notification(`You're near ${location.name}`);
       }
     });
   }
@@ -67,7 +80,10 @@ function notifyUser(location) {
 document.getElementById('searchBtn').addEventListener('click', () => {
   const query = document.getElementById('search').value;
   fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json`)
-   0];
+    .then(res => res.json())
+    .then(data => {
+      if (data.length > 0) {
+        const place = data[0];
         const location = {
           name: place.display_name,
           lat: parseFloat(place.lat),
