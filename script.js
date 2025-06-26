@@ -49,7 +49,7 @@ function addPin(latlng) {
   marker.on('popupopen', function () {
     const popupEl = marker.getPopup().getElement();
 
-    // Prevent tap/click propagation from popup buttons
+    // Disable event propagation to avoid map clicks
     L.DomEvent.disableClickPropagation(popupEl);
     L.DomEvent.disableScrollPropagation(popupEl);
 
@@ -105,11 +105,10 @@ function initMap(position) {
   }).addTo(map);
 
   map.on('click', e => {
-    const tag = e.originalEvent.target.tagName.toLowerCase();
-    if (['button', 'div', 'span'].includes(tag) || e.originalEvent.target.closest('.leaflet-popup-content')) {
-      return; // Don't drop a pin when interacting with popup
+    const insidePopup = e.originalEvent.target.closest('.leaflet-popup-content');
+    if (!insidePopup) {
+      addPin(e.latlng);
     }
-    addPin(e.latlng);
   });
 
   navigator.geolocation.watchPosition(pos => {
