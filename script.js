@@ -22,7 +22,7 @@ window.onload = () => {
   }
 
   function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371e3;
+    const R = 6371e3; // meters
     const toRad = d => d * Math.PI / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
@@ -38,14 +38,15 @@ window.onload = () => {
   let currentPosition = null;
   let markers = [];
 
-  // Remove pin by index
   function removePin(index) {
-    // Remove from map
+    // Remove marker from map
     map.removeLayer(markers[index].marker);
     // Remove from arrays and localStorage
     markers.splice(index, 1);
     savedLocations.splice(index, 1);
     localStorage.setItem("savedPins", JSON.stringify(savedLocations));
+    // Update tooltips indices & content because array changed
+    updateTooltips();
   }
 
   function createTooltipContent(pin, index, distanceStr) {
@@ -53,15 +54,10 @@ window.onload = () => {
       <div style="font-size: 14px;">
         <b>Lat:</b> ${pin.lat.toFixed(5)}, <b>Lng:</b> ${pin.lng.toFixed(5)}<br>
         <b>Distance:</b> ${distanceStr}<br>
-        <button onclick="window.removePinFromTooltip(${index})" style="margin-top:5px;padding:3px 6px;cursor:pointer;">Remove Pin</button>
+        <button class="remove-pin-btn" data-index="${index}">Remove Pin</button>
       </div>
     `;
   }
-
-  // Expose removePin globally for onclick inside tooltip button
-  window.removePinFromTooltip = function(index) {
-    removePin(index);
-  };
 
   function updateTooltips() {
     if (!currentPosition) return;
@@ -84,16 +80,31 @@ window.onload = () => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    // Show user location marker
     L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
 
+    // Load saved pins
     savedLocations.forEach((pin, index) => {
       const marker = L.marker([pin.lat, pin.lng]).addTo(map);
-      const distanceStr = '...';
-      marker.bindTooltip(createTooltipContent(pin, index, distanceStr), { permanent: true, direction: 'top', className: 'custom-tooltip' });
+      marker.bindTooltip(createTooltipContent(pin, index, '...'), { permanent: true, direction: 'top', className: 'custom-tooltip' });
       markers.push({ marker, pin });
     });
 
+    // Listen for map clicks to add pins or remove pins via buttons
     map.on('click', e => {
+      const target = e.originalEvent.target;
+
+      // If clicked on Remove Pin button inside tooltip
+      if (target.classList.contains('remove-pin-btn')) {
+        const index = Number(target.dataset.index);
+        if (!isNaN(index)) {
+          removePin(index);
+        }
+        e.originalEvent.stopPropagation();
+        return;
+      }
+
+      // Otherwise, add new pin
       const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
       savedLocations.push(pin);
       localStorage.setItem("savedPins", JSON.stringify(savedLocations));
