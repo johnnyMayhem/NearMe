@@ -1,25 +1,23 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.custom-tooltip {
+  background: white;
+  border: 1px solid #999;
+  padding: 6px 8px;
+  border-radius: 5px;
+  box-shadow: 1px 1px 5px rgba(0,0,0,0.2);
+  font-size: 13px;
+  pointer-events: auto; /* allow button clicks */
 }
 
-body {
-  font-family: Arial, sans-serif;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+.custom-tooltip button {
+  background: #e74c3c;
+  border: none;
+  color: white;
+  border-radius: 3px;
+  font-size: 12px;
+  padding: 3px 6px;
+  cursor: pointer;
 }
 
-h1 {
-  padding: 10px;
-  background-color: #333;
-  color: #fff;
-  text-align: center;
-  font-size: 1.5rem;
-}
-
-#map {
-  flex: 1;
-  width: 100%;
+.custom-tooltip button:hover {
+  background: #c0392b;
 }
