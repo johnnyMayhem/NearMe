@@ -6,8 +6,6 @@ function initMap() {
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
-
   map.on('click', (e) => {
     const name = prompt('Enter a name for this location:');
     if (name) {
@@ -16,7 +14,7 @@ function initMap() {
         lat: e.latlng.lat,
         lng: e.latlng.lng
       };
-     Locations.push(location);
+      savedLocations.push(location);
       updateLocationsList();
       checkProximity(location);
     }
@@ -27,8 +25,7 @@ function updateLocationsList() {
   const list = document.getElementById('locationsList');
   list.innerHTML = '';
   savedLocations.forEach(loc => {
-    const li = document.createElement('li');
-    li.textContent = `${loc.name} (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`;
+       li.textContent = `${loc.name} (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`;
     list.appendChild(li);
   });
 }
@@ -60,22 +57,17 @@ function getDistance(lat1, lon1, lat2, lon2) {
 function notifyUser(location) {
   if (Notification.permission === 'granted') {
     new Notification(`You're near ${location.name}`);
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
+  (permission === 'granted') {
         new Notification(`You're near ${location.name}`);
       }
     });
   }
 }
 
-Listener('click', () => {
+document.getElementById('searchBtn').addEventListener('click', () => {
   const query = document.getElementById('search').value;
   fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.length > 0) {
-        const place = data[0];
+   0];
         const location = {
           name: place.display_name,
           lat: parseFloat(place.lat),
@@ -95,4 +87,3 @@ window.addEventListener('load', () => {
   }
   initMap();
 });
-
