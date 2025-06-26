@@ -39,8 +39,21 @@ function createPopupContent(lat, lng, dist, index) {
   `;
 }
 
+function savePinsToStorage() {
+  const stored = pins.map(marker => {
+    const pos = marker.getLatLng();
+    return { lat: pos.lat, lng: pos.lng };
+  });
+  localStorage.setItem('savedPins', JSON.stringify(stored));
+}
+
+function loadPinsFromStorage() {
+  const saved = JSON.parse(localStorage.getItem('savedPins') || '[]');
+  saved.forEach(pos => addPin(pos));
+}
+
 function addPin(latlng) {
-  const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
+  const dist = userCoords ? distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng) : 0;
   const index = pins.length;
 
   const marker = L.marker(latlng).addTo(map);
@@ -49,7 +62,6 @@ function addPin(latlng) {
   marker.on('popupopen', function () {
     const popupEl = marker.getPopup().getElement();
 
-    // Disable event propagation to avoid map clicks
     L.DomEvent.disableClickPropagation(popupEl);
     L.DomEvent.disableScrollPropagation(popupEl);
 
@@ -71,6 +83,7 @@ function addPin(latlng) {
           e.preventDefault();
           map.removeLayer(marker);
           pins.splice(pins.indexOf(marker), 1);
+          savePinsToStorage();
           refreshAllPopups();
         });
       }
@@ -78,12 +91,13 @@ function addPin(latlng) {
   });
 
   pins.push(marker);
+  savePinsToStorage();
 }
 
 function refreshAllPopups() {
   pins.forEach((marker, i) => {
     const latlng = marker.getLatLng();
-    const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
+    const dist = userCoords ? distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng) : 0;
     marker.setPopupContent(createPopupContent(latlng.lat, latlng.lng, dist, i));
   });
 }
@@ -110,6 +124,8 @@ function initMap(position) {
       addPin(e.latlng);
     }
   });
+
+  loadPinsFromStorage();
 
   navigator.geolocation.watchPosition(pos => {
     userCoords = {
