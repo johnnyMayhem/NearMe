@@ -1,36 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Geo Map iOS Friendly</title>
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
-<style>
-  html, body, #map {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  #notification-banner {
-    background: #fffae6;
-    color: #333;
-    padding: 12px;
-    text-align: center;
-    font-family: sans-serif;
-    display: none;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Near Me Map App</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+z+QTE8lfk0uD1klS9b6TNn3Wt9H4/N1RyAx4rsMk="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="notification-banner">
-    To enable notifications on iOS Safari, add this site to your Home Screen and open it from there.
+  <h1>Near Me Map App</h1>
+  <div id="notification-banner" style="display:none; background:#ffcc00; padding:10px; text-align:center;">
+    Safari iOS limits notifications in browsers. Please add this app to your home screen for full notifications.
   </div>
-  <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div id="map" style="height: 90vh; width: 100%;"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j7kGqZhNNzO1V7/f7JZkl59WQEjfYauGu+7f/7k="
+    crossorigin=""
+  ></script>
   <script src="script.js"></script>
 </body>
 </html>
