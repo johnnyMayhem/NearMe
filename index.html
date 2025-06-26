@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Near Me Map App</title>
 
+  <!-- Leaflet CSS without integrity -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-sA+z+QTE8lfk0uD1klS9b6TNn3Wt9H4/N1RyAx4rsMk="
-    crossorigin=""
   />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -21,11 +20,8 @@
 
   <div id="map"></div>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-o9N1j7kGqZhNNzO1V7/f7JZkl59WQEjfYauGu+7f/7k="
-    crossorigin=""
-  ></script>
+  <!-- Leaflet JS without integrity -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
