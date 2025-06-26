@@ -38,19 +38,42 @@ window.onload = () => {
   let currentPosition = null;
   let markers = [];
 
-  function updatePopups() {
+  // Remove pin by index
+  function removePin(index) {
+    // Remove from map
+    map.removeLayer(markers[index].marker);
+    // Remove from arrays and localStorage
+    markers.splice(index, 1);
+    savedLocations.splice(index, 1);
+    localStorage.setItem("savedPins", JSON.stringify(savedLocations));
+  }
+
+  function createTooltipContent(pin, index, distanceStr) {
+    return `
+      <div style="font-size: 14px;">
+        <b>Lat:</b> ${pin.lat.toFixed(5)}, <b>Lng:</b> ${pin.lng.toFixed(5)}<br>
+        <b>Distance:</b> ${distanceStr}<br>
+        <button onclick="window.removePinFromTooltip(${index})" style="margin-top:5px;padding:3px 6px;cursor:pointer;">Remove Pin</button>
+      </div>
+    `;
+  }
+
+  // Expose removePin globally for onclick inside tooltip button
+  window.removePinFromTooltip = function(index) {
+    removePin(index);
+  };
+
+  function updateTooltips() {
     if (!currentPosition) return;
-    markers.forEach(({ marker, pin }) => {
+    markers.forEach(({ marker, pin }, index) => {
       const distance = getDistanceInMeters(
         currentPosition.lat, currentPosition.lng, pin.lat, pin.lng
       );
       const distanceStr = (distance > 1000) ?
         `${(distance / 1000).toFixed(2)} km` :
         `${Math.round(distance)} m`;
-      marker.setPopupContent(
-        `Lat: ${pin.lat.toFixed(5)}, Lng: ${pin.lng.toFixed(5)}<br>` +
-        `Distance: ${distanceStr}`
-      );
+      const content = createTooltipContent(pin, index, distanceStr);
+      marker.setTooltipContent(content);
     });
   }
 
@@ -61,28 +84,24 @@ window.onload = () => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Your current location marker
     L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
 
-    // Add saved pins with tooltips & popups
-    savedLocations.forEach(pin => {
-      const marker = L.marker([pin.lat, pin.lng])
-        .addTo(map)
-        .bindTooltip(`Lat: ${pin.lat.toFixed(5)}, Lng: ${pin.lng.toFixed(5)}`)
-        .bindPopup("Loading distance...");
+    savedLocations.forEach((pin, index) => {
+      const marker = L.marker([pin.lat, pin.lng]).addTo(map);
+      const distanceStr = '...';
+      marker.bindTooltip(createTooltipContent(pin, index, distanceStr), { permanent: true, direction: 'top', className: 'custom-tooltip' });
       markers.push({ marker, pin });
     });
 
     map.on('click', e => {
       const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
-      const marker = L.marker([pin.lat, pin.lng])
-        .addTo(map)
-        .bindTooltip(`Lat: ${pin.lat.toFixed(5)}, Lng: ${pin.lng.toFixed(5)}`)
-        .bindPopup("Loading distance...");
       savedLocations.push(pin);
-      markers.push({ marker, pin });
       localStorage.setItem("savedPins", JSON.stringify(savedLocations));
-      updatePopups();
+      const index = savedLocations.length - 1;
+      const marker = L.marker([pin.lat, pin.lng]).addTo(map);
+      marker.bindTooltip(createTooltipContent(pin, index, '...'), { permanent: true, direction: 'top', className: 'custom-tooltip' });
+      markers.push({ marker, pin });
+      updateTooltips();
     });
 
     startTracking();
@@ -95,7 +114,7 @@ window.onload = () => {
       const { latitude, longitude } = pos.coords;
       currentPosition = { lat: latitude, lng: longitude };
 
-      updatePopups();
+      updateTooltips();
 
       savedLocations.forEach(pin => {
         const distance = getDistanceInMeters(latitude, longitude, pin.lat, pin.lng);
@@ -129,13 +148,13 @@ window.onload = () => {
         pos => loadMap(pos.coords.latitude, pos.coords.longitude),
         err => {
           console.warn("Location denied or unavailable, loading fallback.", err.message);
-          loadMap(51.505, -0.09); // London fallback
+          loadMap(51.505, -0.09);
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
       );
     } else {
       console.warn("Geolocation not supported, loading fallback.");
-      loadMap(51.505, -0.09); // fallback
+      loadMap(51.505, -0.09);
     }
   }
 
