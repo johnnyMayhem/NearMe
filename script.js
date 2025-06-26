@@ -1,105 +1,76 @@
 let map;
-let savedLocations = [];
+let savedLocations = JSON.parse(localStorage.getItem("savedPins")) || [];
 
-function initMap() {
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser");
-    return;
-  }
+function initMap(position) {
+  const { latitude, longitude } = position.coords;
+  map = L.map('map').setView([latitude, longitude], 15);
 
-  navigator.geolocation.getCurrentPosition((position) => {
-    const { latitude, longitude } = position.coords;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    map = L.map('map').setView([latitude, longitude], 15);
+  L.marker([latitude, longitude])
+    .addTo(map)
+    .bindPopup("You are here")
+    .openPopup();
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+  map.on('click', (e) => {
+    const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
+    L.marker([pin.lat, pin.lng]).addTo(map).bindPopup("Saved Location");
+    savedLocations.push(pin);
+    localStorage.setItem("savedPins", JSON.stringify(savedLocations));
+  });
 
-    map.on('click', (e) => {
-      const name = prompt('Enter a name for this location:');
-      if (name) {
-                 lng: e.latlng.lng
-        };
-        savedLocations.push(location);
-        updateLocationsList();
-        checkProximity(location);
+  // Restore previous pins
+  savedLocations.forEach(pin => {
+    L.marker([pin.lat, pin.lng]).addTo(map).bindPopup("Saved Location");
+  });
+
+  startTracking();
+}
+
+function startTracking() {
+  navigator.geolocation.watchPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    savedLocations.forEach(pin => {
+      const distance = getDistanceFromLatLonInMeters(latitude, longitude, pin.lat, pin.lng);
+      if (distance < 100) { // 100 meters
+        notifyUser(`You're within 100m of a saved location!`);
       }
     });
-  }, () => {
-    alert("Unable to retrieve your location");
   });
 }
 
-function updateLocationsList() {
-  const list = document.getElementById('locationsList');
-  list.innerHTML = '';
-  savedLocations.forEach(loc => {
-    const li = document.createElement('li');
-    li.textContent = `${loc.name} (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`;
-    list.appendChild(li);
-  });
-}
-
-function checkProximity(location) {
-  if (navigator.geolocation) {
-    navigator.geolocation.watchPosition(pos => {
-      const dist = getDistance(pos.coords.latitude, pos.coords.longitude, location.lat, location.lng);
-      if (dist < 100) notifyUser(location);
-    });
-  }
-}
-
-function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-  const a = Math.sin(Δφ / 2) ** 2 +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-function notifyUser(location) {
+function notifyUser(msg) {
   if (Notification.permission === 'granted') {
-    new Notification(`You're near ${location.name}`);
-  } else if (Notification.permission !== 'denied') {
+    new Notification(msg);
+  }
+}
+
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const toRad = angle => angle * (Math.PI / 180);
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function requestPermission() {
+  if ("Notification" in window) {
     Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        Notification(`You're near ${location.name}`);
+      if (permission !== "granted") {
+        alert("Enable notifications to get alerts near saved locations.");
       }
     });
   }
 }
 
-document.getElementById('searchBtn').addEventListener('click', () => {
-  const query = document.getElementById('search').value;
-  fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.length > 0) {
-        const place = data[0];
-        const location = {
-          name: place.display_name,
-          lat: parseFloat(place.lat),
-          lng: parseFloat(place.lon)
-        };
-        savedLocations.push(location);
-        updateLocationsList();
-        map.setView([location.lat, location.lng], 15);
-        checkProximity(location);
-      }
-    });
-});
-
-window.addEventListener('load', () => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-  }
-  initMap();
-});
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(initMap);
+  requestPermission();
+} else {
+  alert("Geolocation not supported");
+}
