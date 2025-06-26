@@ -1,171 +1,140 @@
-window.onload = () => {
-  const notificationBanner = document.getElementById("notification-banner");
+let map;
+let userMarker;
+let userCoords;
+const pins = [];
 
-  function isIosSafari() {
-    return /iP(ad|hone|od)/.test(navigator.userAgent) &&
-      /Safari/.test(navigator.userAgent) &&
-      !/CriOS|FxiOS/.test(navigator.userAgent);
-  }
+const notificationBanner = document.getElementById('notification-banner');
 
-  function isInStandaloneMode() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  }
-
-  if (isIosSafari() && !isInStandaloneMode()) {
+function checkNotificationSupport() {
+  if (!('Notification' in window)) {
     notificationBanner.style.display = 'block';
+    notificationBanner.textContent = "This browser does not support notifications.";
+  } else if (Notification.permission === 'default') {
+    Notification.requestPermission();
   }
+}
 
-  function notifyUser(message) {
-    if (Notification.permission === 'granted') {
-      new Notification(message);
-    }
-  }
+function distanceInMeters(lat1, lon1, lat2, lon2) {
+  // Haversine formula
+  const R = 6371000; // meters
+  const toRad = (deg) => deg * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-  function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // meters
-    const toRad = d => d * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
+function createPopupContent(lat, lng, dist, index) {
+  return `
+    <div>
+      <b>Pin #${index + 1}</b><br/>
+      Lat: ${lat.toFixed(5)}<br/>
+      Lng: ${lng.toFixed(5)}<br/>
+      Distance: ${dist.toFixed(1)} m<br/>
+      <button class="close-popup" data-index="${index}">Close</button>
+      <button class="remove-pin" data-index="${index}">Remove pin</button>
+    </div>
+  `;
+}
 
-  let map;
-  let savedLocations = JSON.parse(localStorage.getItem("savedPins")) || [];
-  let currentPosition = null;
-  let markers = [];
+function addPin(latlng) {
+  const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
 
-  function removePin(index) {
-    map.removeLayer(markers[index].marker);
-    markers.splice(index, 1);
-    savedLocations.splice(index, 1);
-    localStorage.setItem("savedPins", JSON.stringify(savedLocations));
-    updateTooltips();
-  }
+  const marker = L.marker(latlng).addTo(map);
 
-  function createTooltipContent(pin, index, distanceStr) {
-    return `
-      <div style="font-size: 14px;">
-        <b>Lat:</b> ${pin.lat.toFixed(5)}, <b>Lng:</b> ${pin.lng.toFixed(5)}<br>
-        <b>Distance:</b> ${distanceStr}<br>
-        <button class="remove-pin-btn" data-index="${index}">Remove Pin</button>
-      </div>
-    `;
-  }
+  const index = pins.length;
+  marker.bindPopup(createPopupContent(latlng.lat, latlng.lng, dist, index));
 
-  function updateTooltips() {
-    if (!currentPosition) return;
-    markers.forEach(({ marker, pin }, index) => {
-      const distance = getDistanceInMeters(
-        currentPosition.lat, currentPosition.lng, pin.lat, pin.lng
-      );
-      const distanceStr = (distance > 1000) ?
-        `${(distance / 1000).toFixed(2)} km` :
-        `${Math.round(distance)} m`;
-      const content = createTooltipContent(pin, index, distanceStr);
-      marker.setTooltipContent(content);
-    });
-  }
-
-  function loadMap(lat, lng) {
-    map = L.map('map').setView([lat, lng], 15);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    L.marker([lat, lng]).addTo(map).bindPopup("You are here");
-
-    map.invalidateSize();
-
-    savedLocations.forEach((pin, index) => {
-      const marker = L.marker([pin.lat, pin.lng]).addTo(map);
-      marker.bindTooltip(createTooltipContent(pin, index, '...'), { permanent: true, direction: 'top', className: 'custom-tooltip' });
-      markers.push({ marker, pin });
+  marker.on('popupopen', () => {
+    // Remove pin button
+    const removeBtn = document.querySelector('.remove-pin');
+    removeBtn.addEventListener('click', () => {
+      map.removeLayer(marker);
+      pins.splice(index, 1);
+      refreshAllPopups();
     });
 
-    map.on('click', e => {
-      const target = e.originalEvent.target;
+    // Close popup button
+    const closeBtn = document.querySelector('.close-popup');
+    closeBtn.addEventListener('click', () => {
+      marker.closePopup();
+    });
+  });
 
-      if (target.classList.contains('remove-pin-btn')) {
-        const index = Number(target.dataset.index);
-        if (!isNaN(index)) {
-          removePin(index);
-        }
-        e.originalEvent.stopPropagation();
-        return;
+  pins.push(marker);
+}
+
+function refreshAllPopups() {
+  pins.forEach((marker, i) => {
+    const latlng = marker.getLatLng();
+    const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
+    marker.setPopupContent(createPopupContent(latlng.lat, latlng.lng, dist, i));
+  });
+}
+
+function initMap(position) {
+  userCoords = {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+  };
+
+  map = L.map('map').setView([userCoords.lat, userCoords.lng], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  userMarker = L.marker([userCoords.lat, userCoords.lng], {title: "You are here"}).addTo(map);
+
+  map.on('click', e => {
+    addPin(e.latlng);
+  });
+
+  // Watch user position to update distances in popups
+  navigator.geolocation.watchPosition(pos => {
+    userCoords = {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+    };
+    userMarker.setLatLng([userCoords.lat, userCoords.lng]);
+    refreshAllPopups();
+    checkProximity();
+  }, err => {
+    console.warn('Error watching position:', err);
+  }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+}
+
+function checkProximity() {
+  pins.forEach((marker, i) => {
+    const latlng = marker.getLatLng();
+    const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
+    if (dist < 50) { // 50 meters proximity
+      if (Notification.permission === "granted") {
+        new Notification(`You are within ${dist.toFixed(1)} meters of pin #${i + 1}!`);
       }
-
-      const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
-      savedLocations.push(pin);
-      localStorage.setItem("savedPins", JSON.stringify(savedLocations));
-      const index = savedLocations.length - 1;
-      const marker = L.marker([pin.lat, pin.lng]).addTo(map);
-      marker.bindTooltip(createTooltipContent(pin, index, '...'), { permanent: true, direction: 'top', className: 'custom-tooltip' });
-      markers.push({ marker, pin });
-      updateTooltips();
-    });
-
-    window.addEventListener('resize', () => {
-      map.invalidateSize();
-    });
-
-    startTracking();
-  }
-
-  function startTracking() {
-    if (!navigator.geolocation) return;
-
-    navigator.geolocation.watchPosition(pos => {
-      const { latitude, longitude } = pos.coords;
-      currentPosition = { lat: latitude, lng: longitude };
-
-      updateTooltips();
-
-      savedLocations.forEach(pin => {
-        const distance = getDistanceInMeters(latitude, longitude, pin.lat, pin.lng);
-        if (distance < 100) {
-          notifyUser("You're within 100m of a saved location!");
-        }
-      });
-    }, err => {
-      console.warn("Geolocation watch error:", err.message);
-    });
-  }
-
-  function initNotifications() {
-    if (!("Notification" in window)) {
-      console.log("Notifications not supported.");
-      return false;
     }
-    Notification.requestPermission().then(permission => {
-      if (permission !== "granted") {
-        console.log("Notification permission denied.");
-      }
-    });
-    return true;
+  });
+}
+
+window.onload = () => {
+  checkNotificationSupport();
+
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser');
+    return;
   }
 
-  function initApp() {
-    initNotifications();
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => loadMap(pos.coords.latitude, pos.coords.longitude),
-        err => {
-          console.warn("Location denied or unavailable, loading fallback.", err.message);
-          loadMap(51.505, -0.09);
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-      );
-    } else {
-      console.warn("Geolocation not supported, loading fallback.");
-      loadMap(51.505, -0.09);
-    }
-  }
-
-  initApp();
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      initMap(position);
+    },
+    err => {
+      alert('Unable to retrieve your location');
+      console.error(err);
+    },
+    { enableHighAccuracy: true }
+  );
 };
