@@ -39,13 +39,10 @@ window.onload = () => {
   let markers = [];
 
   function removePin(index) {
-    // Remove marker from map
     map.removeLayer(markers[index].marker);
-    // Remove from arrays and localStorage
     markers.splice(index, 1);
     savedLocations.splice(index, 1);
     localStorage.setItem("savedPins", JSON.stringify(savedLocations));
-    // Update tooltips indices & content because array changed
     updateTooltips();
   }
 
@@ -80,21 +77,19 @@ window.onload = () => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Show user location marker
-    L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+    L.marker([lat, lng]).addTo(map).bindPopup("You are here");
 
-    // Load saved pins
+    map.invalidateSize();
+
     savedLocations.forEach((pin, index) => {
       const marker = L.marker([pin.lat, pin.lng]).addTo(map);
       marker.bindTooltip(createTooltipContent(pin, index, '...'), { permanent: true, direction: 'top', className: 'custom-tooltip' });
       markers.push({ marker, pin });
     });
 
-    // Listen for map clicks to add pins or remove pins via buttons
     map.on('click', e => {
       const target = e.originalEvent.target;
 
-      // If clicked on Remove Pin button inside tooltip
       if (target.classList.contains('remove-pin-btn')) {
         const index = Number(target.dataset.index);
         if (!isNaN(index)) {
@@ -104,7 +99,6 @@ window.onload = () => {
         return;
       }
 
-      // Otherwise, add new pin
       const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
       savedLocations.push(pin);
       localStorage.setItem("savedPins", JSON.stringify(savedLocations));
@@ -113,6 +107,10 @@ window.onload = () => {
       marker.bindTooltip(createTooltipContent(pin, index, '...'), { permanent: true, direction: 'top', className: 'custom-tooltip' });
       markers.push({ marker, pin });
       updateTooltips();
+    });
+
+    window.addEventListener('resize', () => {
+      map.invalidateSize();
     });
 
     startTracking();
