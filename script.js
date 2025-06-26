@@ -1,14 +1,12 @@
 window.onload = () => {
   const notificationBanner = document.getElementById("notification-banner");
 
-  // Detect iOS Safari (not Chrome or Firefox)
   function isIosSafari() {
     return /iP(ad|hone|od)/.test(navigator.userAgent) &&
       /Safari/.test(navigator.userAgent) &&
       !/CriOS|FxiOS/.test(navigator.userAgent);
   }
 
-  // Check if app is running standalone (added to home screen)
   function isInStandaloneMode() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
@@ -37,6 +35,24 @@ window.onload = () => {
 
   let map;
   let savedLocations = JSON.parse(localStorage.getItem("savedPins")) || [];
+  let currentPosition = null;
+  let markers = [];
+
+  function updatePopups() {
+    if (!currentPosition) return;
+    markers.forEach(({ marker, pin }) => {
+      const distance = getDistanceInMeters(
+        currentPosition.lat, currentPosition.lng, pin.lat, pin.lng
+      );
+      const distanceStr = (distance > 1000) ?
+        `${(distance / 1000).toFixed(2)} km` :
+        `${Math.round(distance)} m`;
+      marker.setPopupContent(
+        `Lat: ${pin.lat.toFixed(5)}, Lng: ${pin.lng.toFixed(5)}<br>` +
+        `Distance: ${distanceStr}`
+      );
+    });
+  }
 
   function loadMap(lat, lng) {
     map = L.map('map').setView([lat, lng], 15);
@@ -45,17 +61,28 @@ window.onload = () => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    // Your current location marker
     L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
 
+    // Add saved pins with tooltips & popups
     savedLocations.forEach(pin => {
-      L.marker([pin.lat, pin.lng]).addTo(map).bindPopup("Saved Location");
+      const marker = L.marker([pin.lat, pin.lng])
+        .addTo(map)
+        .bindTooltip(`Lat: ${pin.lat.toFixed(5)}, Lng: ${pin.lng.toFixed(5)}`)
+        .bindPopup("Loading distance...");
+      markers.push({ marker, pin });
     });
 
     map.on('click', e => {
       const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
-      L.marker([pin.lat, pin.lng]).addTo(map).bindPopup("Saved Location");
+      const marker = L.marker([pin.lat, pin.lng])
+        .addTo(map)
+        .bindTooltip(`Lat: ${pin.lat.toFixed(5)}, Lng: ${pin.lng.toFixed(5)}`)
+        .bindPopup("Loading distance...");
       savedLocations.push(pin);
+      markers.push({ marker, pin });
       localStorage.setItem("savedPins", JSON.stringify(savedLocations));
+      updatePopups();
     });
 
     startTracking();
@@ -66,6 +93,10 @@ window.onload = () => {
 
     navigator.geolocation.watchPosition(pos => {
       const { latitude, longitude } = pos.coords;
+      currentPosition = { lat: latitude, lng: longitude };
+
+      updatePopups();
+
       savedLocations.forEach(pin => {
         const distance = getDistanceInMeters(latitude, longitude, pin.lat, pin.lng);
         if (distance < 100) {
