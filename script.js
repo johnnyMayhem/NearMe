@@ -15,9 +15,8 @@ function checkNotificationSupport() {
 }
 
 function distanceInMeters(lat1, lon1, lat2, lon2) {
-  // Haversine formula
-  const R = 6371000; // meters
-  const toRad = (deg) => deg * Math.PI / 180;
+  const R = 6371000;
+  const toRad = deg => deg * Math.PI / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -42,26 +41,33 @@ function createPopupContent(lat, lng, dist, index) {
 
 function addPin(latlng) {
   const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
+  const index = pins.length;
 
   const marker = L.marker(latlng).addTo(map);
-
-  const index = pins.length;
   marker.bindPopup(createPopupContent(latlng.lat, latlng.lng, dist, index));
 
-  marker.on('popupopen', () => {
-    // Remove pin button
-    const removeBtn = document.querySelector('.remove-pin');
-    removeBtn.addEventListener('click', () => {
-      map.removeLayer(marker);
-      pins.splice(index, 1);
-      refreshAllPopups();
-    });
+  marker.on('popupopen', function () {
+    const popupEl = marker.getPopup().getElement();
 
-    // Close popup button
-    const closeBtn = document.querySelector('.close-popup');
-    closeBtn.addEventListener('click', () => {
-      marker.closePopup();
-    });
+    // Wait for DOM to render
+    setTimeout(() => {
+      const closeBtn = popupEl.querySelector('.close-popup');
+      const removeBtn = popupEl.querySelector('.remove-pin');
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          marker.closePopup();
+        });
+      }
+
+      if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+          map.removeLayer(marker);
+          pins.splice(pins.indexOf(marker), 1);
+          refreshAllPopups();
+        });
+      }
+    }, 0);
   });
 
   pins.push(marker);
@@ -87,13 +93,14 @@ function initMap(position) {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-  userMarker = L.marker([userCoords.lat, userCoords.lng], {title: "You are here"}).addTo(map);
+  userMarker = L.marker([userCoords.lat, userCoords.lng], {
+    title: "You are here",
+  }).addTo(map);
 
   map.on('click', e => {
     addPin(e.latlng);
   });
 
-  // Watch user position to update distances in popups
   navigator.geolocation.watchPosition(pos => {
     userCoords = {
       lat: pos.coords.latitude,
@@ -111,7 +118,7 @@ function checkProximity() {
   pins.forEach((marker, i) => {
     const latlng = marker.getLatLng();
     const dist = distanceInMeters(userCoords.lat, userCoords.lng, latlng.lat, latlng.lng);
-    if (dist < 50) { // 50 meters proximity
+    if (dist < 50) {
       if (Notification.permission === "granted") {
         new Notification(`You are within ${dist.toFixed(1)} meters of pin #${i + 1}!`);
       }
