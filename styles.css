@@ -1,18 +1,25 @@
-body {
+* {
   margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
   font-family: Arial, sans-serif;
-  text-align: center;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 h1 {
+  padding: 10px;
   background-color: #333;
   color: #fff;
-  margin: 0;
-  padding: 10px;
+  text-align: center;
   font-size: 1.5rem;
 }
 
 #map {
-  height: 90vh;
+  flex: 1;
   width: 100%;
 }
