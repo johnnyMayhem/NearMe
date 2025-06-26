@@ -49,19 +49,21 @@ function addPin(latlng) {
   marker.on('popupopen', function () {
     const popupEl = marker.getPopup().getElement();
 
-    // Wait for DOM to render
+    // Delay to ensure DOM is ready
     setTimeout(() => {
       const closeBtn = popupEl.querySelector('.close-popup');
       const removeBtn = popupEl.querySelector('.remove-pin');
 
       if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
+        closeBtn.addEventListener('click', e => {
+          e.stopPropagation();
           marker.closePopup();
         });
       }
 
       if (removeBtn) {
-        removeBtn.addEventListener('click', () => {
+        removeBtn.addEventListener('click', e => {
+          e.stopPropagation();
           map.removeLayer(marker);
           pins.splice(pins.indexOf(marker), 1);
           refreshAllPopups();
@@ -87,7 +89,7 @@ function initMap(position) {
     lng: position.coords.longitude,
   };
 
-  map = L.map('map').setView([userCoords.lat, userCoords.lng], 13);
+  map = L.map('map').setView([userCoords.lat, userCoords.lng], 15);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
@@ -98,6 +100,8 @@ function initMap(position) {
   }).addTo(map);
 
   map.on('click', e => {
+    // Prevent click if a button inside a popup was just tapped
+    if (e.originalEvent.target.tagName === 'BUTTON') return;
     addPin(e.latlng);
   });
 
