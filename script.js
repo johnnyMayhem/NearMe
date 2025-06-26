@@ -1,18 +1,15 @@
 let map;
 let savedLocations = JSON.parse(localStorage.getItem("savedPins")) || [];
 
-function initMap(position) {
-  const { latitude, longitude } = position.coords;
-  map = L.map('map').setView([latitude, longitude], 15);
+function loadMap(lat, lng) {
+  console.log("Initializing map at:", lat, lng);
+  map = L.map('map').setView([lat, lng], 15);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  L.marker([latitude, longitude])
-    .addTo(map)
-    .bindPopup("You are here")
-    .openPopup();
+  L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
 
   map.on('click', (e) => {
     const pin = { lat: e.latlng.lat, lng: e.latlng.lng };
@@ -29,12 +26,15 @@ function initMap(position) {
 }
 
 function startTracking() {
+  if (!navigator.geolocation) return;
+
   navigator.geolocation.watchPosition(pos => {
     const { latitude, longitude } = pos.coords;
+
     savedLocations.forEach(pin => {
       const distance = getDistanceInMeters(latitude, longitude, pin.lat, pin.lng);
       if (distance < 100) {
-        notifyUser(`You're within 100m of a saved location!`);
+        notifyUser("You're within 100m of a saved location!");
       }
     });
   }, err => {
@@ -42,43 +42,44 @@ function startTracking() {
   });
 }
 
-function notifyUser(msg) {
+function notifyUser(message) {
   if (Notification.permission === 'granted') {
-    new Notification(msg);
+    new Notification(message);
   }
 }
 
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
-  const toRad = angle => angle * (Math.PI / 180);
+  const toRad = d => d * Math.PI / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+  const a = Math.sin(dLat/2) ** 2 +
             Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+            Math.sin(dLon/2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
 }
 
-function requestNotificationPermission() {
-  if ("Notification" in window) {
-    Notification.requestPermission().then(permission => {
-      if (permission !== "granted") {
-        alert("Enable notifications to get alerts near saved locations.");
+function initApp() {
+  if (!("Notification" in window)) {
+    alert("Notifications not supported.");
+    return;
+  }
+
+  Notification.requestPermission();
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => loadMap(pos.coords.latitude, pos.coords.longitude),
+      err => {
+        console.warn("Location denied, using fallback");
+        loadMap(51.505, -0.09); // London fallback
       }
-    });
+    );
+  } else {
+    alert("Geolocation not supported.");
+    loadMap(51.505, -0.09); // fallback
   }
 }
 
-function fallbackMap() {
-  map = L.map('map').setView([51.505, -0.09], 13); // London fallback
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-  alert("Unable to access location. Showing fallback map.");
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(initMap, fallbackMap);
-  requestNotificationPermission();
-} else {
-  fallbackMap();
-  alert("Geolocation not supported in this browser.");
-}
+initApp();
